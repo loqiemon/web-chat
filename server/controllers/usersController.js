@@ -1,5 +1,8 @@
 const User = require('../model/userModel')
 const bcrypt = require('bcrypt')
+const Messages = require("../model/messageModel");
+const crypto = require('crypto');
+const {genAsymKey} = require("../crypto/crypto");
 
 module.exports.register = async (req, res, next) => {
     try{
@@ -8,11 +11,18 @@ module.exports.register = async (req, res, next) => {
         if (usernameCheck) {
             return res.json({msg: 'Логин занят', status: false})
         }
+        const { publicKey, privateKey } = genAsymKey()
+
         const hashedPassword = await bcrypt.hash(password, 10)
+
+
         const user  = await User.create({
-            email, username, password: hashedPassword, nickname
+            email, username, password: hashedPassword, nickname, publicKey, privateKey: privateKey
         });
+
         user.password = undefined;
+        user.privateKey = undefined;
+        user.publicKey = undefined;
         return res.json({status: true, user: user.toJSON()})
     }catch(ex) {
         next(ex)
@@ -34,6 +44,8 @@ module.exports.login = async (req, res, next) => {
         }
 
         user.password = undefined;
+        user.privateKey = undefined;
+        user.publicKey = undefined;
         return res.json({status: true, user: user.toJSON()})
     }catch(ex) {
         next(ex)
@@ -78,4 +90,21 @@ try {
 } catch (ex) {
     next(ex);
 }
+};
+
+
+module.exports.searchUser = async (req, res, next) => {
+    try {
+        const searchInput = req.body.searchInput.toLowerCase();
+        console.log(searchInput)
+        const users = await User.find({ _id: { $ne: req.body.currentUserId } }).select([
+            "nickname",
+            "avatarImage",
+            "_id",
+        ]);
+        const searchedUsers = users.filter(user => user.nickname.toLowerCase().search(searchInput)>-1)
+        return res.json(searchedUsers);
+    }catch (ex) {
+        next(ex);
+    }
 };
