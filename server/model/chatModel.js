@@ -8,6 +8,11 @@ const chatSchema = new mongoose.Schema({
         required: true
     }],
     private: {type: Boolean},
+    avatarImage: {
+        type: String,
+        default: ''
+    },
+    lastActivity: { type: Date, default: Date.now }
 });
 
 const Chat = mongoose.model('Chat', chatSchema);

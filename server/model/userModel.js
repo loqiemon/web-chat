@@ -28,7 +28,12 @@ const userSchema = new mongoose.Schema({
         iv: {
             type: String,
             required: true
-        }
+        },
+        avatarImage: {
+            type: String,
+            default: ''
+        },
+        chatname: {type: String},
     }]
 })
 

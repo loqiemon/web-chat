@@ -4,6 +4,7 @@ const Chat = require('../model/chatModel');
 const {genSymKey, encryptWithPublicKey} = require("../crypto/crypto");
 const {addSegment} = require("../routes/apiRoutes");
 const axios = require("axios");
+const mongoose = require('mongoose');
 
 module.exports.getMessages = async (req, res, next) => {
   try {
@@ -44,54 +45,77 @@ module.exports.addMessage = async (req, res, next) => {
 };
 
 
+
+
 module.exports.getMyChats = async (req, res, next) => {
   try {
     const {from} = req.body;
-    const _id = from;
-    const currentUser = await User.findById(_id);
-    console.log(currentUser)
-    return res.json({ data: currentUser.chats });
+    const currentUser = await User.findById(from);
+
+    let chats = []
+    if (currentUser.chats.length > 0){
+      currentUser.chats.forEach(chat => {
+        if (chat.private) {
+          console.log('private')
+          const otherUser = chat.users.find(user => user._id !== from)
+          chats.push({
+            _id: chat._id,
+            avatarImage: otherUser.avatarImage,
+            chatname: otherUser.nickname,
+            lastActivity: chat.lastActivity
+          })
+        }else {
+          chats.push({
+            _id: chat._id,
+            avatarImage: chat.avatarImage,
+            chatname: chat.chatname,
+            lastActivity: chat.lastActivity
+          })
+        }
+      })
+      console.log(chats, 'chats')
+      return res.json({ data: chats });
+    }else {
+      return res.json({ data: [] });
+    }
   } catch (ex) {
     next(ex);
   }
 };
 
 
-module.exports.checkIfChatExist = async (req, res, next) => {
+module.exports.getChatMessages = async (req, res, next) => {
   try {
-    const { from, to } = req.body;
-    const currentUser = await User.findById(from).populate('chats.chatId');
+    const { userId, chatId, privateChat } = req.body;
 
-    const personalChats = currentUser.chats.filter((chat) => {
-      const users = chat.chatId.users.map((user) => user.toString());
-      return users.length === 2;
-    }).map((chat) => chat.chatId);
+    const currentUser = await User.findById(userId);
+    const chatObjectId = new mongoose.Types.ObjectId(chatId);
 
-    const chatExists = personalChats.some((chat) => {
-      const users = chat.users.map((user) => user.toString());
-      return users.includes(to.toString());
-    });
+    const chat = currentUser.chats.find(chat => {
+      console.log(chat._id, 'chat._id')
+      console.log(chatObjectId, 'chatId')
+      chat._id == chatObjectId
+    })
+    console.log(chat, 'chat')
 
-    if (!chatExists) {
+    if (!chat){
+      const otherUser = await User.findById(chatId);
+
       const newChat = await Chat.create({
-        chatname: '',
-        users: [from, to],
-        private: true
+          users: [userId, otherUser._id],
+          private: true
       });
-      console.log(1)
 
       const chatSymKey = genSymKey()
 
       const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.key)
       const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
       console.log(currentUserIv, currentUserKey)
-      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv });
+      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage });
 
-
-      const otherUser = await User.findById(to);
       const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.key)
       const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
-      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv});
+      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage });
 
       console.log(2)
       await currentUser.save();
@@ -101,14 +125,70 @@ module.exports.checkIfChatExist = async (req, res, next) => {
       const resp = await axios.post(addSegment, {
         "segment_id": newChat._id
       }).then(res => {
-        console.log(res)
+        // console.log(res.st)
       }).catch(res => console.log(res))
+
+
+
+
+      return res.json({ chat: newChat._id, symKey: chatSymKey.key, iv: chatSymKey.iv });
     }
 
-    return res.json({ data: currentUser.chats });
-  } catch (ex) {
+    return res.json({ chat: chat._id, symKey: chat.encryptionKey, iv: chat.iv });
+  }catch (ex) {
     next(ex);
   }
+  // try {
+  //   const { from, to } = req.body;
+  //   const currentUser = await User.findById(from).populate('chats.chatId');
+  //
+  //   const personalChats = currentUser.chats.filter((chat) => {
+  //     const users = chat.chatId.users.map((user) => user.toString());
+  //     return users.length === 2;
+  //   }).map((chat) => chat.chatId);
+  //
+  //   const chatExists = personalChats.some((chat) => {
+  //     const users = chat.users.map((user) => user.toString());
+  //     return users.includes(to.toString());
+  //   });
+  //
+  //   if (!chatExists) {
+  //     const newChat = await Chat.create({
+  //       chatname: '',
+  //       users: [from, to],
+  //       private: true
+  //     });
+  //     console.log(1)
+  //
+  //     const chatSymKey = genSymKey()
+  //
+  //     const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.key)
+  //     const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
+  //     console.log(currentUserIv, currentUserKey)
+  //     currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv });
+  //
+  //
+  //     const otherUser = await User.findById(to);
+  //     const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.key)
+  //     const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
+  //     otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv});
+  //
+  //     console.log(2)
+  //     await currentUser.save();
+  //     await otherUser.save();
+  //
+  //     console.log(3)
+  //     const resp = await axios.post(addSegment, {
+  //       "segment_id": newChat._id
+  //     }).then(res => {
+  //       console.log(res)
+  //     }).catch(res => console.log(res))
+  //   }
+  //
+  //   return res.json({ data: currentUser.chats });
+  // } catch (ex) {
+  //   next(ex);
+  // }
 };
 
 

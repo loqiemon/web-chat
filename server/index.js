@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const userRoutes = require('./routes/userRoutes');
 const messageRoute = require('./routes/messagesRoute');
 const socket = require("socket.io");
+const cookieParser = require('cookie-parser');
+
 
 const app = express();
 require("dotenv").config();
@@ -13,10 +15,33 @@ app.use(cors());
   
 
 app.use(express.json())
-
+app.use(cookieParser());
 
 app.use('/api/auth', userRoutes)
 app.use('/api/messages', messageRoute)
+const getSession = async (sessionId) => {
+    try {
+        const session = await Session.findOne({ sessionId });
+        return session ? session.sessionData : null;
+    } catch (error) {
+        console.log(error);
+        return null;
+    }
+};
+
+app.use(async (req, res, next) => {
+    const sessionId = req.cookies.sessionId;
+
+    // если токен сессии передан в cookie, то восстанавливаем сессию из базы данных
+    if (sessionId) {
+        const sessionData = await getSession(sessionId);
+        if (sessionData) {
+            req.session = sessionData;
+        }
+    }
+
+    next();
+});
 
 
 
