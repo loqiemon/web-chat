@@ -10,6 +10,7 @@ const {genAsymKey} = require("../crypto/crypto");
 module.exports.register = async (req, res, next) => {
     try{
         const {password, username, email, nickname} = req.body;
+        console.log(req.body)
         const usernameCheck = await User.findOne({ username })
         if (usernameCheck) {
             return res.json({msg: 'Логин занят', status: false})
@@ -27,11 +28,28 @@ module.exports.register = async (req, res, next) => {
         const session = new Session({ session: { username } });
         await session.save();
         const sessionId = session._id.toString();
-        console.log(sessionId, 'sess sessionId')
-        res.cookie('sessionId', sessionId, { maxAge: 86400000, httpOnly: true });
-        res.cookie('sessio', sessionId);
-        console.log(user)
-        return res.json({status: true, avatar: user.avatarImage})
+        // console.log(sessionId, 'sess sessionId')
+        // res.cookie('sessionId', sessionId, { maxAge: 86400000, httpOnly: true });
+        // res.cookie('sessio', sessionId);
+        // console.log(user)
+        // return res.json({status: true, avatar: user.avatarImage})
+
+        res.cookie('sessionId', sessionId, {
+            expires: new Date(Date.now() + 900000),
+            httpOnly: true,
+            // httpOnly: false,
+            secure: true,
+            sameSite: "None",
+            // sameSite: true,
+            // sameSite: false,
+            maxAge: 2 * 60 * 1000,
+            // maxAge: 48 * 60 * 60 * 1000,
+            domain: 'localhost',
+            path: '/',
+            // secure: false //  true for HTTPS
+        });
+
+        return res.status(200).json({ status: true, avatar: user.avatarImage });
     }catch(ex) {
         next(ex)
     }
@@ -40,6 +58,7 @@ module.exports.register = async (req, res, next) => {
 module.exports.login = async (req, res, next) => {
     try{
         const {password, username} = req.body;
+        console.log(password)
         const user = await User.findOne({ username})
         if (!user) {
             return res.json({msg: 'Неверный логин или пароль', status: false})
@@ -56,10 +75,25 @@ module.exports.login = async (req, res, next) => {
         await session.save();
         const sessionId = session._id.toString();
         console.log(sessionId, 'sess sessionId')
-        res.cookie('sessionId', sessionId, { expires: new Date(Date.now() + 900000), maxAge: 86400000, httpOnly: true });
-        // res.cookie('sessionId', sessionId, { maxAge: 86400000});
-        // console.log(user)
-        return res.json({status: true, avatar: user.avatarImage})
+        // res.cookie('sessionId', sessionId, { expires: new Date(Date.now() + 900000), maxAge: 86400000, httpOnly: true });
+        // return res.json({status: true, avatar: user.avatarImage})
+        // res.cookie('sessionId', sessionId, { expires: new Date(Date.now() + 900000), maxAge: 86400000, httpOnly: true  });
+        res.cookie('sessionId', sessionId, {
+            expires: new Date(Date.now() + 900000),
+            httpOnly: true,
+            // httpOnly: false,
+            secure: true,
+            sameSite: "None",
+            // sameSite: true,
+            // sameSite: false,
+            // maxAge: 2 * 60 * 1000,
+            maxAge: 48 * 60 * 60 * 1000,
+            domain: 'localhost',
+            path: '/',
+            // secure: false //  true for HTTPS
+        });
+
+        return res.status(200).json({ status: true, avatar: user.avatarImage });
     }catch(ex) {
         next(ex)
     }
@@ -69,13 +103,13 @@ module.exports.login = async (req, res, next) => {
 module.exports.setAvatar = async (req, res, next) => {
     try{
         const {avatarImage} = req.body;
-        const session = await Session.findOne({ sessionId: req.cookies.sessionId });
-        // console.log(session)
+        const session = await Session.findOne({ _id: req.cookies.sessionId });
+
         const user = await User.findOneAndUpdate({ username: session.session.username }, {
             isAvatarImageSet: true,
             avatarImage
         })
-        
+
         return res.json({isSet: user.isAvatarImageSet, image: user.avatarImage})
     }catch(ex) {
         next(ex)
@@ -108,10 +142,10 @@ module.exports.getAllUsers = async (req, res, next) => {
 // };
 module.exports.logOut = async (req, res, next) => {
     try {
-        // удаление сессии из базы данных
+        console.log(req.cookies)
         await Session.deleteOne({ sessionId: req.cookies.sessionId });
 
-        // уничтожение сессии на клиенте
+
         // req.session.destroy();
         req.cookies.sessionId.destroy();
 
