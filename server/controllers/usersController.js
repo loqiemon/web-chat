@@ -29,7 +29,7 @@ module.exports.register = async (req, res, next) => {
         const sessionId = session._id.toString();
         console.log(sessionId, 'sess sessionId')
         res.cookie('sessionId', sessionId, { maxAge: 86400000, httpOnly: true });
-
+        res.cookie('sessio', sessionId);
         console.log(user)
         return res.json({status: true, avatar: user.avatarImage})
     }catch(ex) {
@@ -56,9 +56,9 @@ module.exports.login = async (req, res, next) => {
         await session.save();
         const sessionId = session._id.toString();
         console.log(sessionId, 'sess sessionId')
-        res.cookie('sessionId', sessionId, { maxAge: 86400000, httpOnly: true });
-
-        console.log(user)
+        res.cookie('sessionId', sessionId, { expires: new Date(Date.now() + 900000), maxAge: 86400000, httpOnly: true });
+        // res.cookie('sessionId', sessionId, { maxAge: 86400000});
+        // console.log(user)
         return res.json({status: true, avatar: user.avatarImage})
     }catch(ex) {
         next(ex)
@@ -123,11 +123,12 @@ module.exports.logOut = async (req, res, next) => {
 };
 
 
-module.exports.checkAuth = async (req, res) => {
+module.exports.checkAuth = async (req, res, next) => {
     try {
         // поиск сессии в базе данных
         console.log(req.cookies, 'cok')
-        const session = await Session.findOne({ _id: undefined});
+        console.log(req.cookies.sessionId, 'cokdd')
+        const session = await Session.findOne({ _id: req.cookies.sessionId});
         console.log(session, 'session')
         // const session = await Session.findOne({ sessionId: req.cookies.sessionId });
         // console.log(session)
@@ -142,9 +143,10 @@ module.exports.checkAuth = async (req, res) => {
         } else {
             res.json({ success: false });
         }
-    } catch (error) {
-        console.log(error);
+    } catch (ex) {
+        console.log(ex);
         res.json({ success: false });
+        next(ex);
     }
 };
 

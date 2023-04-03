@@ -15,7 +15,10 @@ app.use(cors());
   
 
 app.use(express.json())
-app.use(cookieParser());
+app.use(cookieParser('secret key'));
+
+
+
 
 app.use('/api/auth', userRoutes)
 app.use('/api/messages', messageRoute)
@@ -28,6 +31,7 @@ const getSession = async (sessionId) => {
         return null;
     }
 };
+
 
 app.use(async (req, res, next) => {
     const sessionId = req.cookies.sessionId;
