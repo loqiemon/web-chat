@@ -173,7 +173,7 @@ module.exports.checkAuth = async (req, res, next) => {
         // console.log(user, 'user')
         // если сессия найдена, то пользователь авторизован
         if (session) {
-            res.json({ success: true, nickname: user.nickname, image: user.avatarImage  });
+            res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id  });
         } else {
             res.json({ success: false });
         }
@@ -187,21 +187,21 @@ module.exports.checkAuth = async (req, res, next) => {
 
 module.exports.searchUser = async (req, res, next) => {
     try {
-        const session = await Session.findOne({ sessionId: req.cookies.sessionId });
+        const session = await Session.findOne({ _id: req.cookies.sessionId });
         const user = await User.findOne({ username: session.session.username }).select([
             "id",
             "nickname",
             "avatarImage"
         ]);
-        console.log(user._id, 'user._id user._id user._id')
+        // console.log(user._id, 'user._id user._id user._id')
         const searchInput = req.body.searchInput.toLowerCase();
-        console.log(searchInput)
         const users = await User.find({ _id: { $ne: user._id } }).select([
             "nickname",
             "avatarImage",
             "_id",
         ]);
         const searchedUsers = users.filter(searchedUser => searchedUser.nickname.toLowerCase().search(searchInput)>-1)
+
         return res.json(searchedUsers);
     }catch (ex) {
         next(ex);
