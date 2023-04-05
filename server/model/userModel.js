@@ -34,6 +34,7 @@ const userSchema = new mongoose.Schema({
             default: ''
         },
         chatname: {type: String},
+        private: {type: Boolean}
     }]
 })
 

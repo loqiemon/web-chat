@@ -5,6 +5,9 @@ const userRoutes = require('./routes/userRoutes');
 const messageRoute = require('./routes/messagesRoute');
 const socket = require("socket.io");
 const cookieParser = require('cookie-parser');
+const {addBlock} = require("./routes/apiRoutes");
+const axios = require("axios");
+const User = require('./model/userModel')
 
 
 const app = express();
@@ -61,7 +64,7 @@ const server = app.listen(process.env.PORT, () => {
 
 const io = socket(server, {
     cors: {
-      origin: "http://localhost:3000",
+      origin: process.env.ORIGIN,
       credentials: true,
     },
   });
@@ -71,7 +74,23 @@ const io = socket(server, {
     global.chatSocket = socket;
     socket.on("add-user", (userId) => {
       onlineUsers.set(userId, socket.id);
+      console.log(userId, 'userId')
     });
+
+  socket.on('disconnect', async () => {
+      for (let [userId, socketId] of onlineUsers.entries()) {
+          if (socketId === socket.id) {
+              const user = await User.findById(userId)
+              user.chats.forEach(chat => {
+                  axios.post(addBlock, {segment_id: chat.chatId})
+              })
+
+              onlineUsers.delete(userId);
+              console.log(`User with id ${userId} disconnected`);
+              break;
+          }
+      }
+  });
 
     socket.on("send-msg", (data) => {
       const sendUserSocket = onlineUsers.get(data.to);

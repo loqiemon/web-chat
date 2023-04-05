@@ -7,6 +7,8 @@ const axios = require("axios");
 const mongoose = require('mongoose');
 const Session = require("../model/sessionSchema");
 
+
+
 module.exports.getMessages = async (req, res, next) => {
   try {
     const { from, to } = req.body;
@@ -53,32 +55,47 @@ module.exports.getMyChats = async (req, res, next) => {
     // const {from} = req.body;
     // const currentUser = await User.findById(from);
     const session = await Session.findOne({ _id: req.cookies.sessionId });
-
     const currentUser = await User.findOne({ username: session.session.username })
-
 
     let chats = []
     if (currentUser.chats.length > 0){
-      currentUser.chats.forEach(chat => {
+      for (let chat of currentUser.chats) {
+        const chatFounded = await Chat.findById({ _id: chat.chatId });
+        const usersInChat = chatFounded.users.filter(us => us.toString() !== currentUser._id.toString())
         if (chat.private) {
           console.log('private')
           const otherUser = chat.users.find(user => user._id !== currentUser._id)
           chats.push({
             _id: chat._id,
+            chatId: chat.chatId,
             avatarImage: otherUser.avatarImage,
             chatname: otherUser.nickname,
-            lastActivity: chat.lastActivity
+            lastActivity: new Date(chatFounded.lastActivity),
+            users: usersInChat
           })
         }else {
           chats.push({
             _id: chat._id,
+            chatId: chat.chatId,
             avatarImage: chat.avatarImage,
             chatname: chat.chatname,
-            lastActivity: chat.lastActivity
+            lastActivity: new Date(chatFounded.lastActivity),
+            users: usersInChat
           })
         }
-      })
-      console.log(chats, 'chats')
+      }
+      // console.log(chats, 'chats')
+      chats.sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
+
+      chats.forEach(item => {
+        // const day = item.lastActivity.getDate().toString().padStart(2, '0');
+        // const month = (item.lastActivity.getMonth() + 1).toString().padStart(2, '0');
+        // item.lastActivity = `${day}.${month}`;
+        const hours = item.lastActivity.getHours().toString().padStart(2, '0');
+        const minutes = item.lastActivity.getMinutes().toString().padStart(2, '0');
+        item.lastActivity = `${hours}:${minutes}`;
+      });
+
       return res.json({ data: chats });
     }else {
       return res.json({ data: [] });
@@ -226,6 +243,7 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
     isExist.length < 1 ? isExist = await Chat.find({private:true, users:[chatObjectId, currentUser._id ]}) : {}
 
     if (isExist.length < 1) {
+      console.log('NEw chat 111111111111122222222222222')
       const newChat = await Chat.create({
         users: [currentUser._id, otherUser._id],
         private: true
@@ -236,11 +254,11 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
       const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.key)
       const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
       console.log(currentUserIv, currentUserKey)
-      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage });
+      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage, private: true });
 
       const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.key)
       const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
-      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage });
+      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage, private: true});
 
       console.log(2)
       await currentUser.save();
@@ -264,5 +282,19 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
 
 
 }
+
+module.exports.updateChat = async (req, res, next) => {
+  try {
+    const {chatId} = req.body;
+    console.log(chatId)
+    const chat = await Chat.findByIdAndUpdate(chatId, {lastActivity: Date.now()})
+    console.log(chat)
+    return res.json({ success: true})
+  } catch (ex) {
+    return res.json({success: false})
+    next(ex);
+  }
+}
+
 
 
