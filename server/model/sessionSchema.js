@@ -7,7 +7,7 @@ const sessionSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 3600 * 24 * 7 // время жизни сессии (в секундах)
+        expires: 3600 * 24 // время жизни сессии (в секундах)
     }
 });
 

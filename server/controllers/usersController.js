@@ -3,26 +3,33 @@ const bcrypt = require('bcrypt')
 const Messages = require("../model/messageModel");
 const Session = require("../model/sessionSchema");
 const crypto = require('crypto');
-const {genAsymKey} = require("../crypto/crypto");
-
+const {genAsymKey, symEncrypt, encryptWithPassword, decryptWithPassword, encryptWithPublicKey, genSymKey} = require("../crypto/crypto");
+const publicKeys = require('../crypto/publicKeys');
+const privateKeys = require('../crypto/privateKeys');
 
 
 module.exports.register = async (req, res, next) => {
     try{
         const {password, username, email, nickname} = req.body;
-        console.log(req.body)
+
         const usernameCheck = await User.findOne({ username })
         if (usernameCheck) {
             return res.json({msg: 'Логин занят', status: false})
         }
+
         const { publicKey, privateKey } = genAsymKey()
 
         const hashedPassword = await bcrypt.hash(password, 10)
 
-
+        const encryptedPrivateKey = encryptWithPassword(privateKey, password)
+        console.log(privateKey, 'before', encryptedPrivateKey, 'after')
         const user  = await User.create({
-            email, username, password: hashedPassword, nickname, publicKey, privateKey: privateKey
+            email, username, password: hashedPassword, nickname, publicKey, privateKey: encryptedPrivateKey
         });
+
+
+        privateKeys.addKey({userId: user._id.toString(), privateKey: privateKey})
+
 
         //sess
         const session = new Session({ session: { username } });
@@ -35,15 +42,15 @@ module.exports.register = async (req, res, next) => {
         // return res.json({status: true, avatar: user.avatarImage})
 
         res.cookie('sessionId', sessionId, {
-            expires: new Date(Date.now() + 900000),
+            // expires: new Date(Date.now() + 900000),
             httpOnly: true,
             // httpOnly: false,
             secure: true,
             sameSite: "None",
             // sameSite: true,
             // sameSite: false,
-            maxAge: 2 * 60 * 1000,
-            // maxAge: 48 * 60 * 60 * 1000,
+            // maxAge: 2 * 60 * 1000,
+            maxAge: 24 * 60 * 60 * 1000,
             domain: 'localhost',
             path: '/',
             // secure: false //  true for HTTPS
@@ -70,6 +77,8 @@ module.exports.login = async (req, res, next) => {
             return res.json({msg: 'Неверный логин или пароль', status: false})
         }
 
+        const decryptedPrivateKey = decryptWithPassword(user.privateKey, password)
+        privateKeys.addKey({userId: user._id.toString(), privateKey: decryptedPrivateKey})
 
         const session = new Session({ session: { username } });
         await session.save();
@@ -79,7 +88,7 @@ module.exports.login = async (req, res, next) => {
         // return res.json({status: true, avatar: user.avatarImage})
         // res.cookie('sessionId', sessionId, { expires: new Date(Date.now() + 900000), maxAge: 86400000, httpOnly: true  });
         res.cookie('sessionId', sessionId, {
-            expires: new Date(Date.now() + 900000),
+            // expires: new Date(Date.now() + 900000),
             httpOnly: true,
             // httpOnly: false,
             secure: true,
@@ -87,7 +96,7 @@ module.exports.login = async (req, res, next) => {
             // sameSite: true,
             // sameSite: false,
             // maxAge: 2 * 60 * 1000,
-            maxAge: 48 * 60 * 60 * 1000,
+            maxAge: 24 * 60 * 60 * 1000,
             domain: 'localhost',
             path: '/',
             // secure: false //  true for HTTPS
@@ -143,7 +152,11 @@ module.exports.getAllUsers = async (req, res, next) => {
 module.exports.logOut = async (req, res, next) => {
     try {
         console.log(req.cookies)
-        await Session.deleteOne({ sessionId: req.cookies.sessionId });
+        const session = await Session.findOne({ _id: req.cookies.sessionId});
+        const user = await User.findOne({ username: session.session.username });
+        publicKeys.removeKey(user._id.toString())
+
+        await Session.deleteOne({ _id: req.cookies.sessionId });
 
 
         // req.session.destroy();
@@ -159,11 +172,11 @@ module.exports.logOut = async (req, res, next) => {
 
 module.exports.checkAuth = async (req, res, next) => {
     try {
-        // поиск сессии в базе данных
-        console.log(req.cookies, 'cok')
-        console.log(req.cookies.sessionId, 'cokdd')
+        // console.log(req.cookies, 'cok')
+        const {publicKey} = req.body;
+        // console.log(req.cookies.sessionId, 'cokdd')
         const session = await Session.findOne({ _id: req.cookies.sessionId});
-        console.log(session, 'session')
+        // console.log(session, 'session')
         // const session = await Session.findOne({ sessionId: req.cookies.sessionId });
         // console.log(session)
         const user = await User.findOne({ username: session.session.username }).select([
@@ -171,10 +184,19 @@ module.exports.checkAuth = async (req, res, next) => {
             "avatarImage"
         ]);
         // console.log(user, 'user')
-        // если сессия найдена, то пользователь авторизован
         if (session) {
-            res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id  });
+            publicKeys.removeKey(user._id.toString())
+            publicKeys.addKey({userId: user._id.toString(), publicKey});
+            const { key, iv } = genSymKey()
+            const privKey = privateKeys.getKey(user._id.toString());
+            const encryptedSymKey = encryptWithPublicKey(publicKey, key)
+            const encrypteIv = encryptWithPublicKey(publicKey, iv)
+            console.log(privKey, 'privKEy 112')
+            const encryptedPrivateKey = symEncrypt(privKey[0].privateKey, key, iv)
+            console.log(encryptedPrivateKey, 'encryptedPrivateKey')
+            res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id, privateKey: encryptedPrivateKey, encryptedSymKey:encryptedSymKey, encrypteIv:encrypteIv });
         } else {
+            privateKeys.removeKey(user._id.toString())
             res.json({ success: false });
         }
     } catch (ex) {

@@ -1,12 +1,14 @@
 const Messages = require("../model/messageModel");
 const User = require("../model/userModel");
 const Chat = require('../model/chatModel');
-const {genSymKey, encryptWithPublicKey} = require("../crypto/crypto");
+const {genSymKey, encryptWithPublicKey, symEncrypt, symDecrypt} = require("../crypto/crypto");
 const {addSegment} = require("../routes/apiRoutes");
 const axios = require("axios");
 const mongoose = require('mongoose');
 const Session = require("../model/sessionSchema");
-
+require("dotenv").config();
+const publicKeys = require('../crypto/publicKeys');
+const {login} = require("./usersController");
 
 
 module.exports.getMessages = async (req, res, next) => {
@@ -57,6 +59,10 @@ module.exports.getMyChats = async (req, res, next) => {
     const session = await Session.findOne({ _id: req.cookies.sessionId });
     const currentUser = await User.findOne({ username: session.session.username })
 
+    if (!session) {
+      return res.json({success: false});
+    }
+
     let chats = []
     if (currentUser.chats.length > 0){
       for (let chat of currentUser.chats) {
@@ -64,7 +70,10 @@ module.exports.getMyChats = async (req, res, next) => {
         const usersInChat = chatFounded.users.filter(us => us.toString() !== currentUser._id.toString())
         if (chat.private) {
           console.log('private')
-          const otherUser = chat.users.find(user => user._id !== currentUser._id)
+          console.log(usersInChat)
+          // const otherUser = chat.users.find(user => user._id !== currentUser._id)
+          const otherUser = await User.findById(usersInChat[0].toString())
+          console.log(otherUser, 'otherUser')
           chats.push({
             _id: chat._id,
             chatId: chat.chatId,
@@ -112,8 +121,15 @@ module.exports.getChatData = async (req, res, next) => {
     const session = await Session.findOne({ _id: req.cookies.sessionId });
     const user = await User.findOne({ username: session.session.username });
 
+    if (!session) {
+      return res.json({success: false});
+    }
+
     const chat = user.chats.find(chat => chat._id.toString() === chatId)
     console.log(chat)
+    // const decryptedKey = symDecrypt(chat.encryptionKey, process.env.CHAT_SYM_KEY,process.env.CHAT_SYM_IV)
+    // const decryptedIv = symDecrypt(chat.iv, process.env.CHAT_SYM_KEY,process.env.CHAT_SYM_IV)
+    console.log(chat.encryptionKey, chat.iv, 'encr')
     if (chat) {
       return res.json({success: true, chat: chat._id, symKey: chat.encryptionKey, iv: chat.iv });
     } else {
@@ -124,7 +140,7 @@ module.exports.getChatData = async (req, res, next) => {
   }
 }
 
-
+//not used
 module.exports.getChatMessages = async (req, res, next) => {
   try {
     const { userId, chatId, privateChat } = req.body;
@@ -234,6 +250,11 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
   try {
     const { userId } = req.body;
     const session = await Session.findOne({ _id: req.cookies.sessionId });
+
+    if (!session) {
+      return res.json({success: false});
+    }
+
     const currentUser = await User.findOne({ username: session.session.username });
     const otherUser = await User.findById(userId);
 
@@ -250,21 +271,29 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
       });
 
       const chatSymKey = genSymKey()
-
+      // console.log(chatSymKey.key)
+      // console.log(chatSymKey.iv)
+      console.log(chatSymKey.key, 'before')
       const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.key)
       const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
-      console.log(currentUserIv, currentUserKey)
+      console.log(currentUserKey, 'after')
+      // console.log(currentUserIv, currentUserKey, 'current')
+      // const encryptedCurrentUserIv = symEncrypt(currentUserIv, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
+      // const encryptedCurrentUserKey = symEncrypt(currentUserKey, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
+      // console.log(encryptedCurrentUserIv, encryptedCurrentUserKey)
       currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage, private: true });
+
 
       const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.key)
       const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
+      // const encryptedOtherUserIv = symEncrypt(otherUserIv, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
+      // const encryptedOtherUserKey = symEncrypt(otherUserKey, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
       otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage, private: true});
 
-      console.log(2)
+
       await currentUser.save();
       await otherUser.save();
 
-      console.log(3)
       const resp = await axios.post(addSegment, {
         "segment_id": newChat._id
       }).then(res => {
@@ -276,7 +305,6 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
     }
 
   }catch (ex) {
-    return res.json({ success: false})
     next(ex);
   }
 
@@ -285,6 +313,10 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
 
 module.exports.updateChat = async (req, res, next) => {
   try {
+    const session = await Session.findOne({ _id: req.cookies.sessionId });
+    if (!session) {
+      return res.json({success: false});
+    }
     const {chatId} = req.body;
     console.log(chatId)
     const chat = await Chat.findByIdAndUpdate(chatId, {lastActivity: Date.now()})
