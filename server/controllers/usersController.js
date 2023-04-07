@@ -193,6 +193,7 @@ module.exports.checkAuth = async (req, res, next) => {
             const encrypteIv = encryptWithPublicKey(publicKey, iv)
             console.log(privKey, 'privKEy 112')
             const encryptedPrivateKey = symEncrypt(privKey[0].privateKey, key, iv)
+            // const encryptedPrivateKey = ''
             console.log(encryptedPrivateKey, 'encryptedPrivateKey')
             res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id, privateKey: encryptedPrivateKey, encryptedSymKey:encryptedSymKey, encrypteIv:encrypteIv });
         } else {

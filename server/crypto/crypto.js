@@ -44,16 +44,16 @@ function genAsymKey(){
     // });
     const key = new NodeRSA({ b: 2048 });
     const privateKey = key.exportKey('pkcs1-private-pem');
-    const publicKey = key.exportKey('pkcs1-public-pem');
+    const publicKey = key.exportKey('pkcs8-public-pem');
     return { publicKey, privateKey }
 }
 
 
 function encryptWithPublicKey(publicKey, message) {
     // const buffer = Buffer.from(message, 'utf8');
-    // const encrypted = crypto.publicEncrypt(publicKey, buffer);
+    // const encrypted = crypto.publicEncrypt(publicKey, buffer);.
     const key = new NodeRSA();
-    key.importKey(publicKey, 'pkcs1-public-pem');
+    key.importKey(publicKey, 'pkcs8-public-pem');
     const encrypted = key.encrypt(message, 'base64');
     return encrypted;
     // return encrypted.toString('base64');
@@ -90,6 +90,7 @@ function decryptWithPassword(encrypted, password) {
     decrypted += decipher.final('utf8');
     return decrypted;
 }
+
 
 
 module.exports = { genSymKey, genAsymKey, encryptWithPublicKey,symEncrypt, decryptWithPrivateKey, symDecrypt, encryptWithPassword, decryptWithPassword };
