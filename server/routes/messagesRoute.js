@@ -1,5 +1,5 @@
 const { addMessage, getMessages, getMyChats, getChatMessages
-    , getChatData, createChatIfNotExist, updateChat} = require("../controllers/messageController");
+    , getChatData, createChatIfNotExist, updateChat, saveChats, createCommonChat} = require("../controllers/messageController");
 
 const router = require("express").Router();
 
@@ -11,6 +11,8 @@ router.post("/getmsg/", getMessages);
 router.post("/getChatData/", getChatData);
 router.post("/createChatIfNotExist/", createChatIfNotExist);
 router.post("/updateChat/", updateChat);
+router.post("/saveChats/", saveChats);
+router.post("/createCommonChat/", createCommonChat);
 
 
 

@@ -1,11 +1,14 @@
 const User = require('../model/userModel')
 const bcrypt = require('bcrypt')
 const Messages = require("../model/messageModel");
+const Chat = require("../model/chatModel");
 const Session = require("../model/sessionSchema");
 const crypto = require('crypto');
 const {genAsymKey, symEncrypt, encryptWithPassword, decryptWithPassword, encryptWithPublicKey, genSymKey} = require("../crypto/crypto");
 const publicKeys = require('../crypto/publicKeys');
 const privateKeys = require('../crypto/privateKeys');
+const axios = require("axios");
+const {addBlock} = require("../routes/apiRoutes");
 
 
 module.exports.register = async (req, res, next) => {
@@ -235,3 +238,42 @@ module.exports.searchUser = async (req, res, next) => {
         next(ex);
     }
 };
+
+
+module.exports.getAllFriends = async (req, res, next) => {
+    try {
+        const session = await Session.findOne({ _id: req.cookies.sessionId });
+        if (!session) {
+            return res.json({success: false});
+        }
+        const user = await User.findOne({ username: session.session.username })
+
+        let allChats = [];
+        for (userChat of user.chats){
+            const chat = await Chat.findById(userChat.chatId)
+            allChats.push(chat)
+        }
+        console.log(allChats, 'allChats')
+
+
+        const allUsers = allChats.reduce((acc, chat) => acc.concat(chat.users), [])
+        const uniqueUsersIds = (allUsers.map(userId => userId.toString())).filter(userId => userId !== user._id.toString())
+        const uniqueUsers = new Set(uniqueUsersIds);
+
+        let myFriends = []
+        for (friendId of uniqueUsers){
+            const friend = await User.findById(friendId).select([
+                "nickname",
+                "avatarImage",
+                "_id",
+            ])
+            myFriends.push(friend)
+        }
+
+        console.log(myFriends, 'myFriends')
+
+        return res.json({ success: true, myFriends})
+    } catch (ex) {
+        next(ex);
+    }
+}

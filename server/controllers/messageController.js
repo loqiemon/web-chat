@@ -2,7 +2,7 @@ const Messages = require("../model/messageModel");
 const User = require("../model/userModel");
 const Chat = require('../model/chatModel');
 const {genSymKey, encryptWithPublicKey, symEncrypt, symDecrypt} = require("../crypto/crypto");
-const {addSegment} = require("../routes/apiRoutes");
+const {addSegment, addBlock} = require("../routes/apiRoutes");
 const axios = require("axios");
 const mongoose = require('mongoose');
 const Session = require("../model/sessionSchema");
@@ -66,7 +66,9 @@ module.exports.getMyChats = async (req, res, next) => {
     let chats = []
     if (currentUser.chats.length > 0){
       for (let chat of currentUser.chats) {
+        console.log(chat.chatId, 'chat.chatId')
         const chatFounded = await Chat.findById({ _id: chat.chatId });
+        console.log(chatFounded, 'chatFounded.users')
         const usersInChat = chatFounded.users.filter(us => us.toString() !== currentUser._id.toString())
         if (chat.private) {
           console.log('private')
@@ -329,10 +331,76 @@ module.exports.updateChat = async (req, res, next) => {
     console.log(chat)
     return res.json({ success: true})
   } catch (ex) {
-    return res.json({success: false})
     next(ex);
   }
 }
 
 
+module.exports.saveChats = async (req, res, next) => {
+  try {
+    const session = await Session.findOne({ _id: req.cookies.sessionId });
+    if (!session) {
+      return res.json({success: false});
+    }
+    const user = await User.findOne({ username: session.session.username })
+    user.chats.forEach(chat => {
+      axios.post(addBlock, {segment_id: chat.chatId})
+    })
+    return res.json({ success: true})
+  } catch (ex) {
+    next(ex);
+  }
+}
 
+
+module.exports.createCommonChat = async (req, res, next) => {
+  try {
+    const {userIds, chatName} = req.body;
+    const chatname = chatName.length > 3 ? chatName : "Беседа"
+    const session = await Session.findOne({_id: req.cookies.sessionId});
+
+
+    if (!session || userIds.length < 1 || chatName < 1) {
+      return res.json({success: false});
+    }
+
+    const currentUser = await User.findOne({username: session.session.username});
+
+    const newChat = await Chat.create({
+      users: [currentUser._id, ...userIds],
+      private: false,
+      chatname: chatname
+    });
+    const chatSymKey = genSymKey()
+
+    const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey)
+    currentUser.chats.push({
+      chatId: newChat._id,
+      encryptionKey: currentUserKey,
+      chatname: chatname,
+      private: false
+    });
+    await currentUser.save();
+
+    for (userid of userIds){
+      const otherUser = await User.findById(userid);
+      const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey)
+      otherUser.chats.push({
+        chatId: newChat._id,
+        encryptionKey: otherUserKey,
+        chatname: chatname,
+        private: false
+      });
+      await otherUser.save();
+    }
+
+    const resp = await axios.post(addSegment, {
+        "segment_id": newChat._id
+      }).then(res => {
+        // console.log(res.st)
+      }).catch(res => console.log(res))
+      return res.json({success: true});
+  } catch (ex) {
+    next(ex);
+  }
+}
