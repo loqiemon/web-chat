@@ -25,10 +25,10 @@ const userSchema = new mongoose.Schema({
             type: String,
             required: true
         },
-        iv: {
-            type: String,
-            required: true
-        },
+        // iv: {
+        //     type: String,
+        //     required: true
+        // },
         avatarImage: {
             type: String,
             default: ''

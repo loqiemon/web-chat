@@ -165,14 +165,16 @@ module.exports.getChatMessages = async (req, res, next) => {
 
       const chatSymKey = genSymKey()
 
-      const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.key)
-      const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
-      console.log(currentUserIv, currentUserKey)
-      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage });
+      const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey)
+      // const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
+      // console.log(currentUserIv, currentUserKey)
+      // currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage });
+      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage });
 
-      const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.key)
-      const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
-      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage });
+      const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey)
+      // const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
+      // otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage });
+      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage });
 
       console.log(2)
       await currentUser.save();
@@ -185,10 +187,12 @@ module.exports.getChatMessages = async (req, res, next) => {
         // console.log(res.st)
       }).catch(res => console.log(res))
 
-      return res.json({ chat: newChat._id, symKey: chatSymKey.key, iv: chatSymKey.iv });
+      // return res.json({ chat: newChat._id, symKey: chatSymKey.key, iv: chatSymKey.iv });
+      return res.json({ chat: newChat._id, symKey: chatSymKey.key });
     }
 
-    return res.json({ chat: chat._id, symKey: chat.encryptionKey, iv: chat.iv });
+    return res.json({ chat: chat._id, symKey: chat.encryptionKey });
+    // return res.json({ chat: chat._id, symKey: chat.encryptionKey, iv: chat.iv });
   }catch (ex) {
     next(ex);
   }
@@ -274,21 +278,23 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
       // console.log(chatSymKey.key)
       // console.log(chatSymKey.iv)
       console.log(chatSymKey.key, 'before')
-      const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.key)
-      const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
+      // const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv )
+      const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey)
       console.log(currentUserKey, 'after')
       // console.log(currentUserIv, currentUserKey, 'current')
       // const encryptedCurrentUserIv = symEncrypt(currentUserIv, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
       // const encryptedCurrentUserKey = symEncrypt(currentUserKey, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
       // console.log(encryptedCurrentUserIv, encryptedCurrentUserKey)
-      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage, private: true });
+      // currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage, private: true });
+      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage, private: true });
 
 
-      const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.key)
-      const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
+      // const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
+      const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey)
       // const encryptedOtherUserIv = symEncrypt(otherUserIv, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
       // const encryptedOtherUserKey = symEncrypt(otherUserKey, process.env.CHAT_SYM_KEY, process.env.CHAT_SYM_IV)
-      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage, private: true});
+      // otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage, private: true});
+      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage, private: true});
 
 
       await currentUser.save();

@@ -187,15 +187,20 @@ module.exports.checkAuth = async (req, res, next) => {
         if (session) {
             publicKeys.removeKey(user._id.toString())
             publicKeys.addKey({userId: user._id.toString(), publicKey});
-            const { key, iv } = genSymKey()
+            // const { key, iv } = genSymKey()
+            const key = genSymKey()
             const privKey = privateKeys.getKey(user._id.toString());
             const encryptedSymKey = encryptWithPublicKey(publicKey, key)
-            const encrypteIv = encryptWithPublicKey(publicKey, iv)
-            console.log(privKey, 'privKEy 112')
-            const encryptedPrivateKey = symEncrypt(privKey[0].privateKey, key, iv)
-            // const encryptedPrivateKey = ''
-            console.log(encryptedPrivateKey, 'encryptedPrivateKey')
-            res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id, privateKey: encryptedPrivateKey, encryptedSymKey:encryptedSymKey, encrypteIv:encrypteIv });
+            // const encrypteIv = encryptWithPublicKey(publicKey, iv)
+            // const encrypteIv = encryptWithPublicKey(publicKey, '122121')
+            // console.log(iv, 'iv iv')
+            // const encryptedPrivateKey = symEncrypt(privKey[0].privateKey, key, iv)
+            const encryptedPrivateKey = symEncrypt(privKey[0].privateKey, key)
+            // const encryptedPrivateKey = '
+            console.log()
+            // console.log(encryptedPrivateKey, 'encryptedPrivateKey')
+            // res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id, privateKey: encryptedPrivateKey, encryptedSymKey:encryptedSymKey, encrypteIv:encrypteIv });
+            res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id, privateKey: encryptedPrivateKey, encryptedSymKey:encryptedSymKey });
         } else {
             privateKeys.removeKey(user._id.toString())
             res.json({ success: false });
