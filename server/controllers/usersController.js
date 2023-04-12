@@ -14,7 +14,7 @@ const {addBlock} = require("../routes/apiRoutes");
 module.exports.register = async (req, res, next) => {
     try{
         const {password, username, email, nickname} = req.body;
-
+        //Нужна валидация данных
         const usernameCheck = await User.findOne({ username })
         if (usernameCheck) {
             return res.json({msg: 'Логин занят', status: false})

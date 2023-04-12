@@ -369,7 +369,7 @@ module.exports.createCommonChat = async (req, res, next) => {
     const newChat = await Chat.create({
       users: [currentUser._id, ...userIds],
       private: false,
-      chatname: ""+chatname
+      chatname: "Чат "+chatname
     });
     const chatSymKey = genSymKey()
 
@@ -377,7 +377,7 @@ module.exports.createCommonChat = async (req, res, next) => {
     currentUser.chats.push({
       chatId: newChat._id,
       encryptionKey: currentUserKey,
-      chatname: chatname,
+      chatname: "Чат "+chatname,
       private: false
     });
     await currentUser.save();
@@ -388,7 +388,7 @@ module.exports.createCommonChat = async (req, res, next) => {
       otherUser.chats.push({
         chatId: newChat._id,
         encryptionKey: otherUserKey,
-        chatname: chatname,
+        chatname: "Чат "+chatname,
         private: false
       });
       await otherUser.save();
