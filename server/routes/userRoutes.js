@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const {register, login, setAvatar, getAllUsers, logOut, searchUser, checkAuth, getAllFriends, getSomeUsers} = require('../controllers/usersController.js')
+const {register, login, setAvatar, getAllUsers, logOut, searchUser, checkAuth, getAllFriends, getSomeUsers, getPublicKey} = require('../controllers/usersController.js')
 
 
 router.post('/register', register)
@@ -12,6 +12,7 @@ router.post("/searchUser/", searchUser);
 router.post("/checkAuth/", checkAuth);
 router.post("/getAllFriends/", getAllFriends);
 router.post("/getSomeUsers/", getSomeUsers);
+router.post("/getPublicKey/", getPublicKey);
 
 
 module.exports = router

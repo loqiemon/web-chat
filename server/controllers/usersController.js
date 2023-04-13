@@ -304,3 +304,18 @@ module.exports.getSomeUsers = async (req, res, next) => {
         next(ex);
     }
 };
+
+
+module.exports.getPublicKey = async (req, res, next) => {
+    try {
+        const {userId} = req.body
+        const user = await User.findById(userId)
+        if (user) {
+            return res.json({success: true, publicKey: user.publicKey});
+        }else {
+            return res.json({success: false})
+        }
+    } catch (ex) {
+        next(ex);
+    }
+};
