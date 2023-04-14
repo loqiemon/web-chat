@@ -5,7 +5,7 @@ const {publicKey, privateKey} = genAsymKey()
 console.log(publicKey)
 console.log(privateKey)
 
-const ff = 'hello world'gti
+const ff = 'hello world'
 const encrypted = encryptWithPublicKey(publicKey, ff)
 const decr = decryptWithPrivateKey(privateKey, encrypted )
 console.log(decr)
