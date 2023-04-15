@@ -74,15 +74,32 @@ const io = socket(server, {
     global.chatSocket = socket;
     socket.on("add-user", (userId) => {
       onlineUsers.set(userId, socket.id);
-      console.log(userId, 'userId')
     });
+
+    socket.on('connect-to-chat', async (chatId) => {
+        socket.join(chatId)
+    })
+
+    socket.on('disconnect-from-chat', async (chatId) => {
+        if (chatId){
+            console.log('disconnet', chatId)
+            axios.post(addBlock, {segment_id: chatId})
+            socket.leave(chatId)
+        }
+    })
+
+  socket.on("send-msg", (data) => {
+      socket.to(data.to).emit('msg-receive', data.message);
+  })
+
+
 
   socket.on('disconnect', async () => {
       for (let [userId, socketId] of onlineUsers.entries()) {
           if (socketId === socket.id) {
               const user = await User.findById(userId)
               user.chats.forEach(chat => {
-                  axios.post(addBlock, {segment_id: chat.chatId})
+                  axios.post(addBlock, {segment_id: chat.chatId, block: null})
               })
 
               onlineUsers.delete(userId);
@@ -91,11 +108,11 @@ const io = socket(server, {
           }
       }
   });
-
-    socket.on("send-msg", (data) => {
-      const sendUserSocket = onlineUsers.get(data.to);
-      if (sendUserSocket) {
-        socket.to(sendUserSocket).emit("msg-recieve", data.msg);
-      }
-    });
+  //
+  //   socket.on("send-msg", (data) => {
+  //     const sendUserSocket = onlineUsers.get(data.to);
+  //     if (sendUserSocket) {
+  //       socket.to(sendUserSocket).emit("msg-recieve", data.msg);
+  //     }
+  //   });
   });

@@ -281,23 +281,26 @@ module.exports.getAllFriends = async (req, res, next) => {
 
 module.exports.getSomeUsers = async (req, res, next) => {
     try {
-        const {usersToFind} = req.body
+        const {chatId} = req.body
         const session = await Session.findOne({ _id: req.cookies.sessionId });
         if (!session) {
             return res.json({success: false});
         }
         const user = await User.findOne({ username: session.session.username })
+        const chat = await Chat.findById(chatId)
 
         let foundUsers = []
 
-        for (userToFind of usersToFind){
-            const foundUser = await User.findById(userToFind).select([
-                "nickname",
-                "avatarImage",
-                "_id",
-            ]);
-            foundUsers.push(foundUser)
-        }
+        for (userToFind of chat.users){
+            // for (userToFind of usersToFind){
+                const foundUser = await User.findById(userToFind.toString()).select([
+                    "nickname",
+                    "avatarImage",
+                    "_id",
+                ]);
+                foundUsers.push(foundUser)
+            }
+
 
         return res.json({success: true, foundUsers});
     } catch (ex) {

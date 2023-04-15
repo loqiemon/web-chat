@@ -11,45 +11,6 @@ const publicKeys = require('../crypto/publicKeys');
 const {login} = require("./usersController");
 
 
-module.exports.getMessages = async (req, res, next) => {
-  try {
-    const { from, to } = req.body;
-
-    const messages = await Messages.find({
-      users: {
-        $all: [from, to],
-      },
-    }).sort({ updatedAt: 1 });
-
-    const projectedMessages = messages.map((msg) => {
-      return {
-        fromSelf: msg.sender.toString() === from,
-        message: msg.message.text,
-      };
-    });
-    res.json(projectedMessages);
-  } catch (ex) {
-    next(ex);
-  }
-};
-
-module.exports.addMessage = async (req, res, next) => {
-  try {
-    const { from, to, message } = req.body;
-    const data = await Messages.create({
-      message: { text: message },
-      users: [from, to],
-      sender: from,
-    });
-
-    if (data) return res.json({ msg: "Сообщение отправлено" });
-    else return res.json({ msg: "Ошибка при добавлении сообщения в бд" });
-  } catch (ex) {
-    next(ex);
-  }
-};
-
-
 
 
 module.exports.getMyChats = async (req, res, next) => {
@@ -128,10 +89,6 @@ module.exports.getChatData = async (req, res, next) => {
     }
 
     const chat = user.chats.find(chat => chat._id.toString() === chatId)
-    console.log(chat)
-    // const decryptedKey = symDecrypt(chat.encryptionKey, process.env.CHAT_SYM_KEY,process.env.CHAT_SYM_IV)
-    // const decryptedIv = symDecrypt(chat.iv, process.env.CHAT_SYM_KEY,process.env.CHAT_SYM_IV)
-    console.log(chat.encryptionKey, chat.iv, 'encr')
     if (chat) {
       return res.json({success: true, chat: chat._id, symKey: chat.encryptionKey, iv: chat.iv });
     } else {
@@ -142,116 +99,7 @@ module.exports.getChatData = async (req, res, next) => {
   }
 }
 
-//not used
-module.exports.getChatMessages = async (req, res, next) => {
-  try {
-    const { userId, chatId, privateChat } = req.body;
 
-    const currentUser = await User.findById(userId);
-    const chatObjectId = new mongoose.Types.ObjectId(chatId);
-
-    const chat = currentUser.chats.find(chat => {
-      console.log(chat._id, 'chat._id')
-      console.log(chatObjectId, 'chatId')
-      chat._id == chatObjectId
-    })
-    console.log(chat, 'chat')
-
-    if (!chat){
-      const otherUser = await User.findById(chatId);
-
-      const newChat = await Chat.create({
-          users: [userId, otherUser._id],
-          private: true
-      });
-
-      const chatSymKey = genSymKey()
-
-      const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey)
-      // const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
-      // console.log(currentUserIv, currentUserKey)
-      // currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage });
-      currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, chatname: otherUser.nickname, avatarImage: otherUser.avatarImage });
-
-      const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey)
-      // const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
-      // otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage });
-      otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, chatname: currentUser.nickname, avatarImage: currentUser.avatarImage });
-
-      console.log(2)
-      await currentUser.save();
-      await otherUser.save();
-
-      console.log(3)
-      const resp = await axios.post(addSegment, {
-        "segment_id": newChat._id
-      }).then(res => {
-        // console.log(res.st)
-      }).catch(res => console.log(res))
-
-      // return res.json({ chat: newChat._id, symKey: chatSymKey.key, iv: chatSymKey.iv });
-      return res.json({ chat: newChat._id, symKey: chatSymKey.key });
-    }
-
-    return res.json({ chat: chat._id, symKey: chat.encryptionKey });
-    // return res.json({ chat: chat._id, symKey: chat.encryptionKey, iv: chat.iv });
-  }catch (ex) {
-    next(ex);
-  }
-};
-
-
-  // try {
-  //   const { from, to } = req.body;
-  //   const currentUser = await User.findById(from).populate('chats.chatId');
-  //
-  //   const personalChats = currentUser.chats.filter((chat) => {
-  //     const users = chat.chatId.users.map((user) => user.toString());
-  //     return users.length === 2;
-  //   }).map((chat) => chat.chatId);
-  //
-  //   const chatExists = personalChats.some((chat) => {
-  //     const users = chat.users.map((user) => user.toString());
-  //     return users.includes(to.toString());
-  //   });
-  //
-  //   if (!chatExists) {
-  //     const newChat = await Chat.create({
-  //       chatname: '',
-  //       users: [from, to],
-  //       private: true
-  //     });
-  //     console.log(1)
-  //
-  //     const chatSymKey = genSymKey()
-  //
-  //     const currentUserIv = encryptWithPublicKey(currentUser.publicKey, chatSymKey.key)
-  //     const currentUserKey = encryptWithPublicKey(currentUser.publicKey, chatSymKey.iv)
-  //     console.log(currentUserIv, currentUserKey)
-  //     currentUser.chats.push({ chatId: newChat._id , encryptionKey: currentUserKey, iv: currentUserIv });
-  //
-  //
-  //     const otherUser = await User.findById(to);
-  //     const otherUserIv = encryptWithPublicKey(otherUser.publicKey, chatSymKey.key)
-  //     const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey.iv)
-  //     otherUser.chats.push({ chatId: newChat._id , encryptionKey: otherUserKey, iv: otherUserIv});
-  //
-  //     console.log(2)
-  //     await currentUser.save();
-  //     await otherUser.save();
-  //
-  //     console.log(3)
-  //     const resp = await axios.post(addSegment, {
-  //       "segment_id": newChat._id
-  //     }).then(res => {
-  //       console.log(res)
-  //     }).catch(res => console.log(res))
-  //   }
-  //
-  //   return res.json({ data: currentUser.chats });
-  // } catch (ex) {
-  //   next(ex);
-  // }
 module.exports.createChatIfNotExist = async (req, res, next) => {
   try {
     const { userId } = req.body;
