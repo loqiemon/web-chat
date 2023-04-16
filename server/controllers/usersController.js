@@ -4,7 +4,9 @@ const Messages = require("../model/messageModel");
 const Chat = require("../model/chatModel");
 const Session = require("../model/sessionSchema");
 const crypto = require('crypto');
-const {genAsymKey, symEncrypt, encryptWithPassword, decryptWithPassword, encryptWithPublicKey, genSymKey} = require("../crypto/crypto");
+const {genAsymKey, symEncrypt, encryptWithPassword, decryptWithPassword, encryptWithPublicKey, genSymKey,
+    verifySignature
+} = require("../crypto/crypto");
 const publicKeys = require('../crypto/publicKeys');
 const privateKeys = require('../crypto/privateKeys');
 const axios = require("axios");
@@ -38,11 +40,6 @@ module.exports.register = async (req, res, next) => {
         const session = new Session({ session: { username } });
         await session.save();
         const sessionId = session._id.toString();
-        // console.log(sessionId, 'sess sessionId')
-        // res.cookie('sessionId', sessionId, { maxAge: 86400000, httpOnly: true });
-        // res.cookie('sessio', sessionId);
-        // console.log(user)
-        // return res.json({status: true, avatar: user.avatarImage})
 
         res.cookie('sessionId', sessionId, {
             // expires: new Date(Date.now() + 900000),
@@ -68,7 +65,6 @@ module.exports.register = async (req, res, next) => {
 module.exports.login = async (req, res, next) => {
     try{
         const {password, username} = req.body;
-        console.log(password)
         const user = await User.findOne({ username})
         if (!user) {
             return res.json({msg: 'Неверный логин или пароль', status: false})
@@ -86,10 +82,7 @@ module.exports.login = async (req, res, next) => {
         const session = new Session({ session: { username } });
         await session.save();
         const sessionId = session._id.toString();
-        console.log(sessionId, 'sess sessionId')
-        // res.cookie('sessionId', sessionId, { expires: new Date(Date.now() + 900000), maxAge: 86400000, httpOnly: true });
-        // return res.json({status: true, avatar: user.avatarImage})
-        // res.cookie('sessionId', sessionId, { expires: new Date(Date.now() + 900000), maxAge: 86400000, httpOnly: true  });
+
         res.cookie('sessionId', sessionId, {
             // expires: new Date(Date.now() + 900000),
             httpOnly: true,
@@ -175,34 +168,19 @@ module.exports.logOut = async (req, res, next) => {
 
 module.exports.checkAuth = async (req, res, next) => {
     try {
-        // console.log(req.cookies, 'cok')
         const {publicKey} = req.body;
-        // console.log(req.cookies.sessionId, 'cokdd')
         const session = await Session.findOne({ _id: req.cookies.sessionId});
-        // console.log(session, 'session')
-        // const session = await Session.findOne({ sessionId: req.cookies.sessionId });
-        // console.log(session)
         const user = await User.findOne({ username: session.session.username }).select([
             "nickname",
             "avatarImage"
         ]);
-        // console.log(user, 'user')
         if (session) {
             publicKeys.removeKey(user._id.toString())
             publicKeys.addKey({userId: user._id.toString(), publicKey});
-            // const { key, iv } = genSymKey()
             const key = genSymKey()
             const privKey = privateKeys.getKey(user._id.toString());
             const encryptedSymKey = encryptWithPublicKey(publicKey, key)
-            // const encrypteIv = encryptWithPublicKey(publicKey, iv)
-            // const encrypteIv = encryptWithPublicKey(publicKey, '122121')
-            // console.log(iv, 'iv iv')
-            // const encryptedPrivateKey = symEncrypt(privKey[0].privateKey, key, iv)
             const encryptedPrivateKey = symEncrypt(privKey[0].privateKey, key)
-            // const encryptedPrivateKey = '
-            console.log()
-            // console.log(encryptedPrivateKey, 'encryptedPrivateKey')
-            // res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id, privateKey: encryptedPrivateKey, encryptedSymKey:encryptedSymKey, encrypteIv:encrypteIv });
             res.json({ success: true, nickname: user.nickname, image: user.avatarImage, _id: user._id, privateKey: encryptedPrivateKey, encryptedSymKey:encryptedSymKey });
         } else {
             privateKeys.removeKey(user._id.toString())
@@ -225,6 +203,11 @@ module.exports.searchUser = async (req, res, next) => {
             "avatarImage"
         ]);
         // console.log(user._id, 'user._id user._id user._id')
+
+        // const isThisUser = verifySignature(user._id, req.body.sign, user.publicKey);
+        // if (!isThisUser) {
+        //     return res.json({success: false});
+        // }
         const searchInput = req.body.searchInput.toLowerCase();
         const users = await User.find({ _id: { $ne: user._id } }).select([
             "nickname",

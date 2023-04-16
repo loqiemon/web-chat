@@ -83,10 +83,19 @@ const io = socket(server, {
     socket.on('disconnect-from-chat', async (chatId) => {
         if (chatId){
             console.log('disconnet', chatId)
-            axios.post(addBlock, {segment_id: chatId})
+            axios.post(addBlock, {segment_id: chatId, block: null})
             socket.leave(chatId)
         }
     })
+
+      socket.on('update-chats', async (users) => {
+          if (users.length > 0){
+              for (let userId of users) {
+                  const socketId = onlineUsers.get(userId)
+                  socket.to(socketId).emit('update-chats')
+              }
+          }
+      })
 
   socket.on("send-msg", (data) => {
       socket.to(data.to).emit('msg-receive', data.message);
