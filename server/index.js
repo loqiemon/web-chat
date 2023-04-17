@@ -92,6 +92,7 @@ const io = socket(server, {
           if (users.length > 0){
               for (let userId of users) {
                   const socketId = onlineUsers.get(userId)
+                  console.log('update')
                   socket.to(socketId).emit('update-chats')
               }
           }

@@ -109,7 +109,7 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
     const session = await Session.findOne({ _id: req.cookies.sessionId });
 
     const currentUser = await User.findOne({ username: session.session.username });
-    const isThisUser = verifySignature(currentUser._id, sign, currentUser.publicKey)
+    const isThisUser = verifySignature(currentUser._id.toString(), sign, currentUser.publicKey)
 
     if (!session || !isThisUser) {
       return res.json({success: false});
@@ -142,7 +142,7 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
       // }).then(res => {
       //   // console.log(res.st)
       // }).catch(res => console.log(res))
-      return res.json({ success: true, chatId: newChat._id, chatSymKey: currentUserKey});
+      return res.json({ success: true, chatId: newChat._id.toString(), chatSymKey: currentUserKey});
     }else {
       return res.json({ alreadyExist: true, success: true });
     }
@@ -179,7 +179,7 @@ module.exports.saveChats = async (req, res, next) => {
     }
     const user = await User.findOne({ username: session.session.username })
     user.chats.forEach(chat => {
-      axios.post(addBlock, {segment_id: chat.chatId})
+      axios.post(addBlock, {segment_id: chat.chatId,     "block": null})
     })
     return res.json({ success: true})
   } catch (ex) {
@@ -229,12 +229,12 @@ module.exports.createCommonChat = async (req, res, next) => {
       await otherUser.save();
     }
 
-    const resp = await axios.post(addSegment, {
-        "segment_id": newChat._id
-      }).then(res => {
-        // console.log(res.st)
-      }).catch(res => console.log(res))
-      return res.json({success: true});
+    // const resp = await axios.post(addSegment, {
+    //     "segment_id": newChat._id
+    //   }).then(res => {
+    //     // console.log(res.st)
+    //   }).catch(res => console.log(res))
+      return res.json({success: true, chatId: newChat._id.toString(), chatSymKey: currentUserKey});
   } catch (ex) {
     next(ex);
   }
