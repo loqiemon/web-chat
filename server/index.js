@@ -88,17 +88,18 @@ const io = socket(server, {
         }
     })
 
-      socket.on('update-chats', async (users) => {
-          if (users.length > 0){
-              for (let userId of users) {
-                  const socketId = onlineUsers.get(userId)
-                  console.log('update')
-                  socket.to(socketId).emit('update-chats')
-              }
+  socket.on('update-chats', async (users) => {
+      if (users.length > 0){
+          for (let userId of users) {
+              const socketId = onlineUsers.get(userId)
+              console.log('update')
+              socket.to(socketId).emit('update-chats')
           }
-      })
+      }
+  })
 
   socket.on("send-msg", (data) => {
+      console.log(1)
       socket.to(data.to).emit('msg-receive', data.message);
   })
 
