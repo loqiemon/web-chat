@@ -216,7 +216,7 @@ module.exports.createCommonChat = async (req, res, next) => {
       private: false
     });
     await currentUser.save();
-
+    console.log(userIds)
     for (userid of userIds){
       const otherUser = await User.findById(userid);
       const otherUserKey = encryptWithPublicKey(otherUser.publicKey, chatSymKey)

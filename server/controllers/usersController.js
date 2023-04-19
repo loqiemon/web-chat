@@ -243,15 +243,21 @@ module.exports.getAllFriends = async (req, res, next) => {
         const uniqueUsersIds = (allUsers.map(userId => userId.toString())).filter(userId => userId !== user._id.toString())
         const uniqueUsers = new Set(uniqueUsersIds);
 
-        let myFriends = []
-        for (friendId of uniqueUsers){
-            const friend = await User.findById(friendId).select([
+        // let myFriends = []
+        // for (friendId of uniqueUsers){
+            // const friend = await User.findById(friendId).select([
+            //     "nickname",
+            //     "avatarImage",
+            //     "_id",
+            // ])
+            const myFriends = await User.find({}).select([
                 "nickname",
                 "avatarImage",
                 "_id",
             ])
-            myFriends.push(friend)
-        }
+        console.log(myFriends)
+            // myFriends.push(friend)
+        // }
 
         console.log(myFriends, 'myFriends')
 
