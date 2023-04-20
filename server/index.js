@@ -88,12 +88,12 @@ const io = socket(server, {
         }
     })
 
-  socket.on('update-chats', async (users) => {
+  socket.on('update-chats', async (users, chatId) => {
       if (users.length > 0){
           for (let userId of users) {
               const socketId = onlineUsers.get(userId)
               console.log('update')
-              socket.to(socketId).emit('update-chats')
+              socket.to(socketId).emit('update-chats', chatId)
           }
       }
   })
