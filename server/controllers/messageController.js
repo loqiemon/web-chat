@@ -18,9 +18,10 @@ module.exports.getMyChats = async (req, res, next) => {
     const { sign } = req.body;
     const session = await Session.findOne({ _id: req.cookies.sessionId });
     const currentUser = await User.findOne({ username: session.session.username })
-    const isThisUser = verifySignature(currentUser._id.toString(), sign, currentUser.publicKey)
-
-    if (!session || !isThisUser) {
+    // const isThisUser = verifySignature(currentUser._id.toString(), sign, currentUser.publicKey)
+    //
+    // if (!session || !isThisUser) {
+    if (!session) {
       return res.json({success: false});
     }
 
@@ -78,23 +79,23 @@ module.exports.getChatData = async (req, res, next) => {
     const user = await User.findOne({ username: session.session.username });
 
 
-    const isThisUser = verifySignature(chatId, sign, user.publicKey)
+    // const isThisUser = verifySignature(chatId, sign, user.publicKey)
 
 
     if (!session) {
       return res.json({success: false});
     }
 
-    if (isThisUser) {
+    // if (isThisUser) {
       const chat = user.chats.find(chat => chat._id.toString() === chatId)
       if (chat) {
         return res.json({success: true, chat: chat._id, symKey: chat.encryptionKey, iv: chat.iv });
       } else {
         return res.json({success: false});
       }
-    }else {
-      return res.json({success: false});
-    }
+    // }else {
+    //   return res.json({success: false});
+    // }
 
 
   }catch(ex){
@@ -109,9 +110,10 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
     const session = await Session.findOne({ _id: req.cookies.sessionId });
 
     const currentUser = await User.findOne({ username: session.session.username });
-    const isThisUser = verifySignature(currentUser._id, sign, currentUser.publicKey)
+    // const isThisUser = verifySignature(currentUser._id, sign, currentUser.publicKey)
 
-    if (!session || !isThisUser) {
+    // if (!session || !isThisUser) {
+      if (!session) {
       return res.json({success: false});
     }
 
@@ -137,11 +139,11 @@ module.exports.createChatIfNotExist = async (req, res, next) => {
       await currentUser.save();
       await otherUser.save();
 
-      // const resp = await axios.post(addSegment, {
-      //   "segment_id": newChat._id
-      // }).then(res => {
-      //   // console.log(res.st)
-      // }).catch(res => console.log(res))
+      const resp = await axios.post(addSegment, {
+        "segment_id": newChat._id
+      }).then(res => {
+        console.log(res)
+      }).catch(res => console.log(res))
       return res.json({ success: true, chatId: newChat._id, chatSymKey: currentUserKey});
     }else {
       return res.json({ alreadyExist: true, success: true });

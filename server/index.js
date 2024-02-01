@@ -73,10 +73,12 @@ const io = socket(server, {
   io.on("connection", (socket) => {
     global.chatSocket = socket;
     socket.on("add-user", (userId) => {
+
       onlineUsers.set(userId, socket.id);
     });
 
     socket.on('connect-to-chat', async (chatId) => {
+        console.log('chatId', chatId)
         socket.join(chatId)
     })
 
