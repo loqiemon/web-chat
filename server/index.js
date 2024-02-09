@@ -8,7 +8,8 @@ const cookieParser = require('cookie-parser');
 const {addBlock} = require("./routes/apiRoutes");
 const axios = require("axios");
 const User = require('./model/userModel')
-
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 require("dotenv").config();
@@ -100,6 +101,23 @@ const io = socket(server, {
       })
 
   socket.on("send-msg", (data) => {
+      console.log(data)
+      if (data.message.file) {
+          try {
+
+              const fullPath = path.join(__dirname, 'static', data.message.filePath)
+              fs.mkdirSync(fullPath, { recursive: true });
+              fs.writeFile(fullPath + '/' + data.message.fileName, data.message.file, (err) => {
+                  if (err) {
+                      console.error('Error writing file:', err);
+                  } else {
+                      console.log('File saved successfully.');
+                  }
+              });
+          } catch (error){
+              console.log(error)
+          }
+      }
       socket.to(data.to).emit('msg-receive', data.message);
   })
 
