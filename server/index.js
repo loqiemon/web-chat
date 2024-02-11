@@ -11,6 +11,7 @@ const User = require('./model/userModel')
 const fs = require('fs');
 const path = require('path');
 
+
 const app = express();
 require("dotenv").config();
 
@@ -21,6 +22,71 @@ app.use(cors({ credentials: true, origin: process.env.ORIGIN }));
 app.use(express.json())
 app.use(cookieParser(process.env.COOKIE_SECRET_KEY));
 
+// const folderPath = path.join(__dirname, 'static')
+
+// app.use(express.static(folderPath));
+
+app.get('/static/:folder/:filename', (req, res) => {
+    const fileName = req.params.filename;
+    const folderPath = path.join(__dirname, 'static', req.params.folder);
+    const filePath = path.join(folderPath, fileName);
+    res.download(filePath, (err) => {
+        if (err) {
+            console.error('Ошибка при скачивании файла:', err);
+            res.status(404).send('Файл не найден');
+        }
+    });
+
+});
+
+
+const multer = require('multer');
+const upload = multer(); // без параметров, чтобы разрешить загрузку файлов
+
+app.post('/addFile', upload.single('file'), async (req, res, next) => {
+    try {
+        console.log(req.body, 'file')
+        console.log("req.file", req.file)
+
+        const file = req.file; // Здесь будет объект файла
+        const data = req.body;
+
+        const fullPath = path.join(__dirname, 'static', data.filePath);
+        fs.mkdirSync(fullPath, { recursive: true });
+
+        fs.writeFile(fullPath + '/' + file.originalname, file.buffer, (err) => {
+            if (err) {
+                console.error('Error writing file:', err);
+                return res.status(500).json({ success: false, error: err.message });
+            } else {
+                console.log('File saved successfully.');
+                return res.json({ success: true });
+            }
+        });
+    } catch (ex) {
+        next(ex);
+    }
+});
+
+// app.post('/addFile', async (req, res, next) => {
+//     try {
+//         console.log(req.body, 'filw')
+//         console.log("req.files", req.files)
+//         const data = req.body
+//         const fullPath = path.join(__dirname, 'static', data.filePath)
+//         fs.mkdirSync(fullPath, { recursive: true });
+//         fs.writeFile(fullPath + '/' + data.fileName, data.file, (err) => {
+//             if (err) {
+//                 console.error('Error writing file:', err);
+//             } else {
+//                 console.log('File saved successfully.');
+//             }
+//         });
+//         return res.json({success: true});
+//     } catch (ex) {
+//         next(ex);
+//     }
+// });
 
 app.use('/api/auth', userRoutes)
 app.use('/api/messages', messageRoute)
@@ -101,23 +167,20 @@ const io = socket(server, {
       })
 
   socket.on("send-msg", (data) => {
-      console.log(data)
-      if (data.message.file) {
-          try {
-
-              const fullPath = path.join(__dirname, 'static', data.message.filePath)
-              fs.mkdirSync(fullPath, { recursive: true });
-              fs.writeFile(fullPath + '/' + data.message.fileName, data.message.file, (err) => {
-                  if (err) {
-                      console.error('Error writing file:', err);
-                  } else {
-                      console.log('File saved successfully.');
-                  }
-              });
-          } catch (error){
-              console.log(error)
-          }
-      }
+      // console.log('12.', data);
+      // try {
+      //     const fullPath = path.join(__dirname, 'static', data.message.filePath)
+      //     fs.mkdirSync(fullPath, { recursive: true });
+      //     fs.writeFile(fullPath + '/' + data.message.fileName, data.message.file, (err) => {
+      //         if (err) {
+      //             console.error('Error writing file:', err);
+      //         } else {
+      //             console.log('File saved successfully.');
+      //         }
+      //     });
+      // } catch (ex) {
+      //     console.error('Error 223 file:', ex);
+      // }
       socket.to(data.to).emit('msg-receive', data.message);
   })
 

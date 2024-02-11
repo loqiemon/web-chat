@@ -11,6 +11,8 @@ const publicKeys = require('../crypto/publicKeys');
 const privateKeys = require('../crypto/privateKeys');
 const axios = require("axios");
 const {addBlock} = require("../routes/apiRoutes");
+const path = require("path");
+const fs = require("fs");
 
 
 module.exports.register = async (req, res, next) => {
@@ -134,6 +136,11 @@ module.exports.getAllUsers = async (req, res, next) => {
       next(ex);
     }
   };
+
+
+
+
+
 
 
 // module.exports.logOut = (req, res, next) => {
