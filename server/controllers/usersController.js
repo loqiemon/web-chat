@@ -13,6 +13,48 @@ const axios = require("axios");
 const {addBlock} = require("../routes/apiRoutes");
 const path = require("path");
 const fs = require("fs");
+const AuthCodes = require('../model/authCodes')
+const nodemailer = require('nodemailer');
+
+function generateCode() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+    const charactersLength = characters.length;
+
+    for (let i = 0; i < 5; i++) {
+        code += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+
+    return code;
+}
+
+async function sendTwoFactorCode(code, userMail){
+    const transporter = nodemailer.createTransport({
+        service: "Gmail",
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+            user: 'webchattwofactor@gmail.com',
+            pass: 'anwm lmqf vunu ayok'
+        }
+    });
+
+    const mailOptions = {
+        from: 'webchattwofactor@gmail.com',
+        to: userMail,
+        subject: 'Двухфакторный код',
+        text: `Ваш код: ${code}`
+    };
+
+    transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+            console.log(error);
+        } else {
+            console.log('Email sent: ' + info.response);
+        }
+    });
+}
 
 
 module.exports.register = async (req, res, next) => {
@@ -78,32 +120,68 @@ module.exports.login = async (req, res, next) => {
             return res.json({msg: 'Неверный логин или пароль', status: false})
         }
 
-        const decryptedPrivateKey = decryptWithPassword(user.privateKey, password)
-        privateKeys.addKey({userId: user._id.toString(), privateKey: decryptedPrivateKey})
-
-        const session = new Session({ session: { username } });
-        await session.save();
-        const sessionId = session._id.toString();
-
-        res.cookie('sessionId', sessionId, {
-            // expires: new Date(Date.now() + 900000),
-            httpOnly: true,
-            // httpOnly: false,
-            secure: true,
-            sameSite: "None",
-            // sameSite: true,
-            // sameSite: false,
-            // maxAge: 2 * 60 * 1000,
-            maxAge: 24 * 60 * 60 * 1000,
-            domain: 'localhost',
-            path: '/',
-            // secure: false //  true for HTTPS
-        });
+        const newCode = generateCode();
+        await AuthCodes.deleteOne({user: user._id})
+        await AuthCodes.create({user, code: newCode})
+        await sendTwoFactorCode(newCode, user.email)
+        // const decryptedPrivateKey = decryptWithPassword(user.privateKey, password)
+        // privateKeys.addKey({userId: user._id.toString(), privateKey: decryptedPrivateKey})
+        //
+        // const session = new Session({ session: { username } });
+        // await session.save();
+        // const sessionId = session._id.toString();
+        //
+        // res.cookie('sessionId', sessionId, {
+        //     // expires: new Date(Date.now() + 900000),
+        //     httpOnly: true,
+        //     // httpOnly: false,
+        //     secure: true,
+        //     sameSite: "None",
+        //     // sameSite: true,
+        //     // sameSite: false,
+        //     // maxAge: 2 * 60 * 1000,
+        //     maxAge: 24 * 60 * 60 * 1000,
+        //     domain: 'localhost',
+        //     path: '/',
+        //     // secure: false //  true for HTTPS
+        // });
 
         return res.status(200).json({ status: true, avatar: user.avatarImage });
     }catch(ex) {
         next(ex)
     }
+}
+
+module.exports.finalAuth = async (req, res, next) => {
+    const {password, username, code} = req.body;
+    const user = await User.findOne({ username})
+    if (!user) {
+        return res.json({msg: 'Неверный логин или пароль', status: false})
+    }
+
+    const isCodeExist = await AuthCodes.findOne({user: user._id})
+
+    if (!isCodeExist) return res.json({msg: 'Неверный код', status: false})
+    if (isCodeExist.code !== code) return res.json({msg: 'Неверный код', status: false})
+
+
+    const decryptedPrivateKey = decryptWithPassword(user.privateKey, password)
+    privateKeys.addKey({userId: user._id.toString(), privateKey: decryptedPrivateKey})
+
+    const session = new Session({ session: { username } });
+    await session.save();
+    const sessionId = session._id.toString();
+
+    res.cookie('sessionId', sessionId, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        maxAge: 24 * 60 * 60 * 1000,
+        domain: 'localhost',
+        path: '/',
+    });
+
+    return res.status(200).json({ status: true, avatar: user.avatarImage });
 }
 
 

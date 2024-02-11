@@ -68,25 +68,6 @@ app.post('/addFile', upload.single('file'), async (req, res, next) => {
     }
 });
 
-// app.post('/addFile', async (req, res, next) => {
-//     try {
-//         console.log(req.body, 'filw')
-//         console.log("req.files", req.files)
-//         const data = req.body
-//         const fullPath = path.join(__dirname, 'static', data.filePath)
-//         fs.mkdirSync(fullPath, { recursive: true });
-//         fs.writeFile(fullPath + '/' + data.fileName, data.file, (err) => {
-//             if (err) {
-//                 console.error('Error writing file:', err);
-//             } else {
-//                 console.log('File saved successfully.');
-//             }
-//         });
-//         return res.json({success: true});
-//     } catch (ex) {
-//         next(ex);
-//     }
-// });
 
 app.use('/api/auth', userRoutes)
 app.use('/api/messages', messageRoute)
@@ -167,20 +148,6 @@ const io = socket(server, {
       })
 
   socket.on("send-msg", (data) => {
-      // console.log('12.', data);
-      // try {
-      //     const fullPath = path.join(__dirname, 'static', data.message.filePath)
-      //     fs.mkdirSync(fullPath, { recursive: true });
-      //     fs.writeFile(fullPath + '/' + data.message.fileName, data.message.file, (err) => {
-      //         if (err) {
-      //             console.error('Error writing file:', err);
-      //         } else {
-      //             console.log('File saved successfully.');
-      //         }
-      //     });
-      // } catch (ex) {
-      //     console.error('Error 223 file:', ex);
-      // }
       socket.to(data.to).emit('msg-receive', data.message);
   })
 
