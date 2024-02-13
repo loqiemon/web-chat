@@ -71,34 +71,16 @@ module.exports.register = async (req, res, next) => {
         const hashedPassword = await bcrypt.hash(password, 10)
 
         const encryptedPrivateKey = encryptWithPassword(privateKey, password)
-        console.log(privateKey, 'before', encryptedPrivateKey, 'after')
+
         const user  = await User.create({
             email, username, password: hashedPassword, nickname, publicKey, privateKey: encryptedPrivateKey
         });
 
+        const newCode = generateCode();
+        await AuthCodes.deleteOne({user: user._id})
+        await AuthCodes.create({user, code: newCode})
+        await sendTwoFactorCode(newCode, user.email)
 
-        privateKeys.addKey({userId: user._id.toString(), privateKey: privateKey})
-
-
-        //sess
-        const session = new Session({ session: { username } });
-        await session.save();
-        const sessionId = session._id.toString();
-
-        res.cookie('sessionId', sessionId, {
-            // expires: new Date(Date.now() + 900000),
-            httpOnly: true,
-            // httpOnly: false,
-            secure: true,
-            sameSite: "None",
-            // sameSite: true,
-            // sameSite: false,
-            // maxAge: 2 * 60 * 1000,
-            maxAge: 24 * 60 * 60 * 1000,
-            domain: 'localhost',
-            path: '/',
-            // secure: false //  true for HTTPS
-        });
 
         return res.status(200).json({ status: true, avatar: user.avatarImage });
     }catch(ex) {
@@ -124,27 +106,6 @@ module.exports.login = async (req, res, next) => {
         await AuthCodes.deleteOne({user: user._id})
         await AuthCodes.create({user, code: newCode})
         await sendTwoFactorCode(newCode, user.email)
-        // const decryptedPrivateKey = decryptWithPassword(user.privateKey, password)
-        // privateKeys.addKey({userId: user._id.toString(), privateKey: decryptedPrivateKey})
-        //
-        // const session = new Session({ session: { username } });
-        // await session.save();
-        // const sessionId = session._id.toString();
-        //
-        // res.cookie('sessionId', sessionId, {
-        //     // expires: new Date(Date.now() + 900000),
-        //     httpOnly: true,
-        //     // httpOnly: false,
-        //     secure: true,
-        //     sameSite: "None",
-        //     // sameSite: true,
-        //     // sameSite: false,
-        //     // maxAge: 2 * 60 * 1000,
-        //     maxAge: 24 * 60 * 60 * 1000,
-        //     domain: 'localhost',
-        //     path: '/',
-        //     // secure: false //  true for HTTPS
-        // });
 
         return res.status(200).json({ status: true, avatar: user.avatarImage });
     }catch(ex) {
@@ -163,8 +124,6 @@ module.exports.finalAuth = async (req, res, next) => {
 
     if (!isCodeExist) return res.json({msg: 'Неверный код', status: false})
     if (isCodeExist.code !== code) return res.json({msg: 'Неверный код', status: false})
-
-
     const decryptedPrivateKey = decryptWithPassword(user.privateKey, password)
     privateKeys.addKey({userId: user._id.toString(), privateKey: decryptedPrivateKey})
 
@@ -254,7 +213,9 @@ module.exports.logOut = async (req, res, next) => {
 module.exports.checkAuth = async (req, res, next) => {
     try {
         const {publicKey} = req.body;
+        console.log(req.cookies.sessionId, 'console.log(req.cookies.sessionId)')
         const session = await Session.findOne({ _id: req.cookies.sessionId});
+        console.log("session", session)
         const user = await User.findOne({ username: session.session.username }).select([
             "nickname",
             "avatarImage"
